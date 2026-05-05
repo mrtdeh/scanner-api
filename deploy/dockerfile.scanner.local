@@ -1,0 +1,7 @@
+FROM alpine:latest AS build-release-stage
+
+WORKDIR /
+COPY ./build/bin/scanner /scanner
+
+# Run
+ENTRYPOINT ["/scanner"]

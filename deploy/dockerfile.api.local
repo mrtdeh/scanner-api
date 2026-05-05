@@ -1,0 +1,7 @@
+FROM alpine:latest AS build-release-stage
+
+WORKDIR /
+COPY ./build/bin/api /api
+
+# Run
+ENTRYPOINT ["/api"]

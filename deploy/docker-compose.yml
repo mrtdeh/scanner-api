@@ -1,0 +1,19 @@
+version: "3.9"
+
+services:
+
+  api-service:
+    image: mrtdeh/api
+    environment:
+      - HTTP_HOST=0.0.0.0
+      - HTTP_PORT=8080
+      - SCANNER_ADDR=scanner-service:10000
+    ports:
+      - "8080:8080" 
+
+
+  scanner-service:
+    image: mrtdeh/scanner
+    environment:
+      - GRPC_PORT=10000
+
