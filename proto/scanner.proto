@@ -1,0 +1,166 @@
+syntax = "proto3";
+
+package scanner;
+
+option go_package = "./scannerpb;scannerpb";
+
+service ScannerService {
+
+    rpc CreateScan(CreateScanRequest) returns (CreateScanResponse);
+    
+    rpc SendFile(stream SendFileRequest) returns (SendFileResponse);
+    
+    rpc GetScanResultByID(GetScanResultByIDRequest) returns (GetScanResultByIDResponse);
+    
+    rpc GetHistory(GetHistoryRequest) returns (GetHistoryResponse);
+
+    // rpc StartScan(StartScanRequest) returns (StartScanResponse);
+
+    // rpc StopScan(StopScanRequest) returns (StopScanResponse);
+
+    // rpc PauseScan(PauseScanRequest) returns (PauseScanResponse);
+
+    // rpc ResumeScan(ResumeScanRequest) returns (ResumeScanResponse);
+
+}
+
+// ==========================================================
+
+// message StartScanRequest{
+//     string scan_id = 1;
+// }
+
+// message StartScanResponse{
+//     bool success = 1;
+//     string message = 2;
+// }
+
+// message StopScanRequest{
+//     string scan_id = 1;
+// }
+
+// message StopScanResponse{
+//     bool success = 1;
+//     string message = 2;
+// }
+// message PauseScanRequest{
+//     string scan_id = 1;
+// }
+
+// message PauseScanResponse{
+//     bool success = 1;
+//     string message = 2;
+// }
+
+// message ResumeScanRequest{
+//     string scan_id = 1;
+// }
+
+// message ResumeScanResponse{
+//     bool success = 1;
+//     string message = 2;
+// }
+
+
+// ==========================================================
+
+message SendFileRequest{
+    string scan_id = 1;
+    oneof data{
+        FileInfo info = 2;
+        bytes chunk_data = 3;
+        bool done = 4;
+    }
+}
+
+message FileInfo {
+    string name = 1;
+    uint32 size = 2;
+}
+
+
+message SendFileResponse{
+
+}
+
+message Scan {
+    string id = 1;
+    string name = 2;
+    FileScanResult file = 4;
+    ScanStatus status = 5;
+}
+
+// message ScanFile {
+//     string scan_id = 1;
+//     string file_hash = 4;
+//     string file_name = 5;
+//     int64 file_size = 6;
+// }
+
+
+message FileScanResult{
+    string file_name = 1;
+    bool scan_finished = 2;
+    repeated ScannerResult Result = 3;
+}
+message ScannerResult {
+    string scanner_name = 1;
+    string result = 2;
+}
+
+enum ScanStatus {
+    Scan_STATUS_UNSPECIFIED = 0;
+    Scan_STATUS_PENDING = 1;
+    Scan_STATUS_PROCESSING = 2;
+    Scan_STATUS_COMPLETED = 3;
+    Scan_STATUS_FAILED = 4;
+    Scan_STATUS_CANCELLED = 5;
+}
+
+
+// ==================== CreateScan ====================
+
+message CreateScanRequest {
+    string name = 1;
+    // bool start_scan = 2;
+}
+
+
+
+message CreateScanResponse {
+    bool success = 1;
+    string scan_id = 2;
+    string message = 3;
+}
+
+// ==================== GetScanResultByID ====================
+
+message GetScanResultByIDRequest {
+    string scan_id = 1;
+}
+
+message GetScanResultByIDResponse {
+    bool found = 1;
+    Scan Scan = 2;
+    string error = 3; 
+}
+
+// ==================== GetHistory ====================
+
+message GetHistoryRequest {
+    ScanStatus status_filter = 1;     
+    // int64 from_time = 2;              
+    // int64 to_time = 3;                 
+    // int32 limit = 4;                 
+    // int32 offset = 5;                 
+    // string sort_by = 6;              
+    // bool sort_desc = 7;               
+}
+
+message GetHistoryResponse {
+    repeated Scan Scans = 1;
+    // int32 total_count = 2;
+    // int32 page = 3;
+    // int32 page_size = 4;
+}
+

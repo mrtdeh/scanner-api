@@ -15,6 +15,10 @@ init:
 clean:
 	rm -rf $(BUILD_DIR)/*
 
+protoc:
+	protoc --go-grpc_out=./proto/ ./proto/*.proto --go_out=./proto
+
+
 build: clean init
 	go build -v -o $(BUILD_DIR)/bin/api -ldflags="-s -w -X   ./cmd/api
 	go build -v -o $(BUILD_DIR)/bin/scanner -ldflags="-s -w -X   ./cmd/scanner
