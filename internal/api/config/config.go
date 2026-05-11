@@ -1,4 +1,4 @@
-package apiconfig
+package config
 
 import (
 	"strings"
@@ -7,16 +7,17 @@ import (
 )
 
 const (
-	DEBUG           = "debug"
-	LOG_LEVEL       = "log_level"
-	HTTP_HOST       = "http_host"
-	HTTP_PORT       = "http_port"
-	YARA_RULES_PATH = "yara_rules_path"
+	DEBUG        = "debug"
+	LOG_LEVEL    = "log_level"
+	HTTP_HOST    = "http_host"
+	HTTP_PORT    = "http_port"
+	SCANNER_ADDR = "scanner_addr"
 )
 
 type Config struct {
-	HttpHost string `mapstructure:"http_host"`
-	HttpPort uint   `mapstructure:"http_port"`
+	HttpHost       string `mapstructure:"http_host"`
+	HttpPort       uint   `mapstructure:"http_port"`
+	ScannerAddress string `mapstructure:"scanner_addr"`
 }
 
 func LoadConfiguration() (*Config, error) {
@@ -28,13 +29,14 @@ func LoadConfiguration() (*Config, error) {
 	viper.BindEnv(LOG_LEVEL, "LOG_LEVEL")
 	viper.BindEnv(HTTP_HOST, "HTTP_HOST")
 	viper.BindEnv(HTTP_PORT, "HTTP_PORT")
-	viper.BindEnv(YARA_RULES_PATH, "YARA_RULES_PATH")
+	viper.BindEnv(SCANNER_ADDR, "SCANNER_ADDR")
 
 	// Set the default configuration
 	viper.SetDefault(DEBUG, false)
 	viper.SetDefault(LOG_LEVEL, "info")
 	viper.SetDefault(HTTP_HOST, "localhost")
 	viper.SetDefault(HTTP_PORT, 8080)
+	viper.SetDefault(SCANNER_ADDR, "")
 
 	var cnf Config
 	err := viper.Unmarshal(&cnf)

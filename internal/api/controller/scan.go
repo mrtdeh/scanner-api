@@ -1,34 +1,55 @@
 package controller
 
 import (
-	"mime/multipart"
+	"fmt"
+	"net/http"
+	"path/filepath"
 
 	"github.com/gin-gonic/gin"
-	"github.com/mrtdeh/scanners-management/internal/api/repositories"
+	"github.com/google/uuid"
+	"github.com/mrtdeh/scanners-management/internal/api/services"
 )
 
 type ScanController struct {
-	ss repositories.ScannerRepository
+	ss *services.ScannerClientService
 }
 
-func NewScanController() *ScanController {
-	return &ScanController{}
-}
-
-type ScanRequest struct {
-	Name        string         `form:"name"`
-	Description string         `form:"description"`
-	File        multipart.File `form:"file"`
+func NewScanController(ss *services.ScannerClientService) *ScanController {
+	return &ScanController{ss}
 }
 
 func (ctr *ScanController) CreateScan(c *gin.Context) {
-	var req ScanRequest
+	// scanName := c.PostForm("name")
+	// realFielpath := c.PostForm("realFilepath")
 
-	if err := c.ShouldBind(&req); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
+	// Source
+	file, err := c.FormFile("file")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": fmt.Sprintf("get form err: %s", err.Error()),
+		})
 		return
 	}
-	defer req.File.Close()
+
+	filename := filepath.Base(file.Filename)
+
+	scanid := uuid.New().String()
+	err = ctr.ss.CreateScan(services.ScanRequest{
+		ScanID: scanid,
+		FormFiles: []services.FormFile{
+			services.FormFile{
+				Name:     filename,
+				TempPath: file.Filename,
+				Size:     file.Size,
+			},
+		},
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": fmt.Sprintf("create scan err: %s", err.Error()),
+		})
+		return
+	}
 
 }
 func (ctr *ScanController) GetResult(c *gin.Context)
