@@ -100,7 +100,6 @@ func (sc *ScannerHandler) GetScanResultByID(ctx context.Context, req *scannerpb.
 func (sc *ScannerHandler) SendFile(stream scannerpb.ScannerService_SendFileServer) error {
 	var file *os.File
 	var bytesWriten int64
-	var fileSize int64
 	var scanId, fileId string
 	var finfo *services.FileInfo
 
@@ -126,8 +125,6 @@ func (sc *ScannerHandler) SendFile(stream scannerpb.ScannerService_SendFileServe
 			if err != nil {
 				return err
 			}
-			// name := path.Base(finfo.Name)
-			fileSize = int64(finfo.Size)
 
 			file, err = os.Create(finfo.FilePath)
 			if err != nil {
@@ -141,7 +138,7 @@ func (sc *ScannerHandler) SendFile(stream scannerpb.ScannerService_SendFileServe
 				return errors.New("error in write to file : " + err.Error())
 			}
 			bytesWriten += int64(n)
-			if bytesWriten == fileSize {
+			if bytesWriten == finfo.Size {
 				file.Close()
 				stream.SendAndClose(&scannerpb.SendFileResponse{})
 				break

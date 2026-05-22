@@ -1,10 +1,11 @@
 package services
 
 import (
-	"time"
-
+	responses "github.com/mrtdeh/scanners-management/internal/models"
 	"github.com/mrtdeh/scanners-management/internal/scanner/domains"
 )
+
+// ============================================= Request Models
 
 type CreateScanRequest struct {
 	ScanID string
@@ -19,6 +20,8 @@ type FileInfoRequest struct {
 	Size   int64
 }
 
+// ============================================= Internal Models
+
 type FileInfo struct {
 	ID       string
 	ScanID   string
@@ -30,50 +33,20 @@ type FileInfo struct {
 	FilePath string
 }
 
-type CreateScanResponse struct {
-	FilesStates []FileStateResponse `json:"files_states"`
-}
+// ============================================= Response Models
 
-type FileStateResponse struct {
-	FileID string `json:"file_id"`
-	Cached bool   `json:"cached"`
-}
-
-//==================================================================
-
-type ScanRequestResultResponse struct {
-	ScanID      string               `json:"scan_id"`
-	Result      []ScanResultResponse `json:"result"`
-	StartedAt   time.Time            `json:"started_at"`
-	CompletedAt time.Time            `json:"completed_at"`
-}
-
-type ScanResultResponse struct {
-	FileName string                  `json:"file_name"`
-	Status   string                  `json:"status"`
-	Results  []ScannerResultResponse `json:"results"`
-}
-
-type ScannerResultResponse struct {
-	Engine      string    `json:"engine"`
-	Status      string    `json:"status"`
-	Output      string    `json:"output"`
-	StartedAt   time.Time `json:"started_at"`
-	CompletedAt time.Time `json:"completed_at"`
-}
-
-func (s *ScannerServerService) convertRequestScanToResponse(rs domains.ScanRequest) ScanRequestResultResponse {
-	var scanResults []ScanResultResponse
+func (s *ScannerServerService) convertRequestScanToResponse(rs domains.ScanRequest) responses.ScanRequestResultResponse {
+	var scanResults []responses.ScanResultResponse
 	for _, f := range rs.Files {
 
-		var scannerResults []ScannerResultResponse
+		var scannerResults []responses.ScannerResultResponse
 
 		if f.ResultID != "" {
 			// If file has result id, then get scan result by this id and convert to response model
 			sr, _ := s.resRepo.GetResultByID(f.ResultID)
 			if sr != nil {
 				for _, r := range sr.Results {
-					scannerResults = append(scannerResults, ScannerResultResponse{
+					scannerResults = append(scannerResults, responses.ScannerResultResponse{
 						Engine:      r.Engine,
 						Status:      string(r.Status),
 						Output:      r.Output,
@@ -89,7 +62,7 @@ func (s *ScannerServerService) convertRequestScanToResponse(rs domains.ScanReque
 			f.Status = "failed"
 		}
 
-		scanResults = append(scanResults, ScanResultResponse{
+		scanResults = append(scanResults, responses.ScanResultResponse{
 			FileName: f.Name,
 			Status:   f.Status,
 			Results:  scannerResults,
@@ -97,7 +70,7 @@ func (s *ScannerServerService) convertRequestScanToResponse(rs domains.ScanReque
 
 	}
 
-	return ScanRequestResultResponse{
+	return responses.ScanRequestResultResponse{
 		ScanID:      rs.ScanID,
 		Result:      scanResults,
 		StartedAt:   rs.StartedAt,

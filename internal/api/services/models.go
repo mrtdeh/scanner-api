@@ -1,6 +1,6 @@
 package services
 
-import "time"
+import responses "github.com/mrtdeh/scanners-management/internal/models"
 
 type FormFile struct {
 	Name     string
@@ -19,7 +19,7 @@ type CreateScanResponse struct {
 type GetHistoryRequest struct{}
 
 type GetHistoryResponse struct {
-	Results []ScanView `json:"results"`
+	Results []responses.ScanRequestResultResponse `json:"results"`
 }
 
 type GetResultByIDRequest struct {
@@ -27,31 +27,10 @@ type GetResultByIDRequest struct {
 }
 
 type GetResultByIDResponse struct {
-	Result ScanView `json:"result"`
+	Result responses.ScanRequestResultResponse `json:"result"`
 }
 
 type GetStatsResponse struct {
 	Running   int `json:"running"`
 	Completed int `json:"completed"`
-}
-
-type ScanView struct {
-	ScanID      string           `json:"scan_id"`
-	Result      []ScanResultView `json:"result"`
-	StartedAt   time.Time        `json:"started_at"`
-	CompletedAt time.Time        `json:"completed_at"`
-}
-
-type ScanResultView struct {
-	FileName string              `json:"file_name"`
-	Results  []ScannerResultView `json:"results"`
-}
-
-type ScannerResultView struct {
-	Engine      string    `json:"engine"`
-	Status      string    `json:"status"`
-	Output      string    `json:"output"`
-	StartedAt   time.Time `json:"started_at"`
-	CompletedAt time.Time `json:"completed_at"`
-	Error       string    `json:"error,omitempty"`
 }

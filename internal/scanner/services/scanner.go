@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+
+	responses "github.com/mrtdeh/scanners-management/internal/models"
 	"github.com/mrtdeh/scanners-management/internal/scanner/domains"
 	engines "github.com/mrtdeh/scanners-management/internal/scanner/engins"
 	"github.com/mrtdeh/scanners-management/internal/scanner/repositories"
@@ -53,15 +55,15 @@ func (s *ScannerServerService) AddFileToScanQueue(finfo *FileInfo) error {
 	return s.jm.AddJob(job)
 }
 
-func (s *ScannerServerService) CreateScan(req CreateScanRequest) (*CreateScanResponse, error) {
+func (s *ScannerServerService) CreateScan(req CreateScanRequest) (*responses.CreateScanResponse, error) {
 	var files []domains.ScanRequestFile
-	var states []FileStateResponse
+	var states []responses.FileStateResponse
 	now := time.Now()
 
 	for _, rf := range req.Files {
 		// Initlize variables
 		var scanResultID string
-		var state = FileStateResponse{FileID: rf.ID}
+		var state = responses.FileStateResponse{FileID: rf.ID}
 		f := domains.ScanRequestFile{
 			ID:       rf.ID,
 			Name:     rf.Name,
@@ -114,7 +116,7 @@ func (s *ScannerServerService) CreateScan(req CreateScanRequest) (*CreateScanRes
 	}
 
 	// Response to controller
-	return &CreateScanResponse{
+	return &responses.CreateScanResponse{
 		FilesStates: states,
 	}, nil
 }
@@ -124,14 +126,14 @@ func (s *ScannerServerService) IsScanRequestExists(scanId string) bool {
 	return m != nil
 }
 
-func (s *ScannerServerService) GetHistory() ([]ScanRequestResultResponse, error) {
+func (s *ScannerServerService) GetHistory() ([]responses.ScanRequestResultResponse, error) {
 	scans, err := s.reqRepo.List(bson.M{})
 	if err != nil {
 		log.Println("error in get by file hash : ", err)
 		return nil, err
 	}
 
-	var results []ScanRequestResultResponse
+	var results []responses.ScanRequestResultResponse
 
 	for _, sr := range scans {
 		res := s.convertRequestScanToResponse(sr)
@@ -141,7 +143,7 @@ func (s *ScannerServerService) GetHistory() ([]ScanRequestResultResponse, error)
 	return results, nil
 }
 
-func (s *ScannerServerService) GetResultByScanID(scanId string) (*ScanRequestResultResponse, error) {
+func (s *ScannerServerService) GetResultByScanID(scanId string) (*responses.ScanRequestResultResponse, error) {
 	result, err := s.reqRepo.GetByID(scanId)
 	if err != nil {
 		log.Println("error in get scan : ", err)

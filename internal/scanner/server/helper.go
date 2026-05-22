@@ -1,12 +1,12 @@
 package grpcserver
 
 import (
+	responses "github.com/mrtdeh/scanners-management/internal/models"
 	scannerpb "github.com/mrtdeh/scanners-management/internal/scanner/pb"
-	"github.com/mrtdeh/scanners-management/internal/scanner/services"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-func convertScanToProtoResponse(s services.ScanRequestResultResponse) *scannerpb.ScanResponse {
+func convertScanToProtoResponse(s responses.ScanRequestResultResponse) *scannerpb.ScanResponse {
 	var scanresultProto []*scannerpb.ScanResult
 
 	for _, sr := range s.Result {
