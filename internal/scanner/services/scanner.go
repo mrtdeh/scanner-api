@@ -5,9 +5,11 @@ import (
 	"log"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/mrtdeh/scanners-management/internal/scanner/domains"
 	engines "github.com/mrtdeh/scanners-management/internal/scanner/engins"
 	"github.com/mrtdeh/scanners-management/internal/scanner/repositories"
+
 	jobmng "github.com/mrtdeh/scanners-management/pkg/job_manager"
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
@@ -35,21 +37,17 @@ func NewScannerServerService(
 	return s
 }
 
-func (s *ScannerServerService) checkFileResultIsExist(fileHash string) bool {
-	// Implementation for checking if file is cached
-	_, err := s.resRepo.GetByFileHash(fileHash)
-	if err == nil {
-		return true
-	}
-	return false
-}
+func (s *ScannerServerService) AddFileToScanQueue(finfo *FileInfo) error {
 
-func (s *ScannerServerService) AddFileToScanQueue(scanRequestID, fileHash, filepath string) error {
-
-	job := jobmng.NewJob(3, time.Second*5)
+	job := jobmng.NewJob(jobmng.Config{
+		MaxRetry: 3,
+		Timeout:  time.Second * 10,
+		Backoff:  time.Second * 2,
+	})
 	job.AddTasks(
-		s.HashGeneratorTask(fileHash, filepath),
-		s.RandomSleeperTask(fileHash),
+		s.YaraScannerTask(finfo),
+		s.HashGeneratorTask(finfo),
+		s.RandomSleeperTask(finfo),
 	)
 
 	return s.jm.AddJob(job)
@@ -57,40 +55,62 @@ func (s *ScannerServerService) AddFileToScanQueue(scanRequestID, fileHash, filep
 
 func (s *ScannerServerService) CreateScan(req CreateScanRequest) (*CreateScanResponse, error) {
 	var files []domains.ScanRequestFile
-	var states []FileState
+	var states []FileStateResponse
+	now := time.Now()
 
-	// Convert DTO to business model
 	for _, rf := range req.Files {
+		// Initlize variables
+		var scanResultID string
+		var state = FileStateResponse{FileID: rf.ID}
 		f := domains.ScanRequestFile{
-			FileID: rf.UID,
-			Name:   rf.Name,
-			Size:   rf.Size,
-			Hash:   rf.Hash,
-			Status: "pending",
+			ID:       rf.ID,
+			Name:     rf.Name,
+			Size:     rf.Size,
+			Hash:     rf.Hash,
+			Status:   "pending",
+			ResultID: scanResultID,
+			FilePath: fmt.Sprintf("/tmp/%s_%s", rf.ID, rf.Name),
 		}
 
-		var state = FileState{FileID: rf.UID}
-		isExist := s.checkFileResultIsExist(rf.Hash)
-		if isExist {
+		// Check scan result for file is exist or not
+		latest, _ := s.resRepo.GetLatestResultByFileHash(rf.Hash)
+		isExpired := latest != nil && latest.IsExpired()
+		if latest == nil || isExpired {
+			// If scan result is not exist or expired, then create new scan result for this file
+			scanResultID = uuid.NewString()
+			err := s.resRepo.Create(domains.ScanResult{
+				ID:        scanResultID,
+				FileHash:  rf.Hash,
+				Results:   []domains.ScannerResult{},
+				CreatedAt: now,
+			})
+			if err != nil {
+				return nil, fmt.Errorf("failed to create scan result: %w", err)
+			}
+		} else {
+			// If scan result is exist and not expired, then use this result for response and skip scan for this file
 			state.Cached = true
 			f.Status = "cached"
+			scanResultID = latest.ID
 		}
-		states = append(states, state)
 
+		states = append(states, state)
 		files = append(files, f)
+
 	}
+	// Convert requested scan info to business model
 	m := domains.ScanRequest{
 		ScanID:    req.ScanID,
 		Files:     files,
-		StartedAt: time.Now(),
-		CreatedAt: time.Now(),
+		StartedAt: now,
+		CreatedAt: now,
 		Status:    "created",
 	}
 
 	// Store model to db
 	err := s.reqRepo.Create(m)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create scan request: %w", err)
 	}
 
 	// Response to controller
@@ -104,14 +124,14 @@ func (s *ScannerServerService) IsScanRequestExists(scanId string) bool {
 	return m != nil
 }
 
-func (s *ScannerServerService) GetHistory() ([]ScanRequestResult, error) {
+func (s *ScannerServerService) GetHistory() ([]ScanRequestResultResponse, error) {
 	scans, err := s.reqRepo.List(bson.M{})
 	if err != nil {
 		log.Println("error in get by file hash : ", err)
 		return nil, err
 	}
 
-	var results []ScanRequestResult
+	var results []ScanRequestResultResponse
 
 	for _, sr := range scans {
 		res := s.convertRequestScanToResponse(sr)
@@ -121,7 +141,7 @@ func (s *ScannerServerService) GetHistory() ([]ScanRequestResult, error) {
 	return results, nil
 }
 
-func (s *ScannerServerService) GetResultByScanID(scanId string) (*ScanRequestResult, error) {
+func (s *ScannerServerService) GetResultByScanID(scanId string) (*ScanRequestResultResponse, error) {
 	result, err := s.reqRepo.GetByID(scanId)
 	if err != nil {
 		log.Println("error in get scan : ", err)
@@ -141,13 +161,16 @@ func (s *ScannerServerService) GetFileInfo(scanId, fileId string) (*FileInfo, er
 	}
 
 	for _, f := range result.Files {
-		if f.FileID == fileId {
+		if f.ID == fileId {
 			return &FileInfo{
-				UID:    f.FileID,
-				Status: f.Status,
-				Hash:   f.Hash,
-				Name:   f.Name,
-				Size:   f.Size,
+				ID:       f.ID,
+				ScanID:   scanId,
+				Status:   f.Status,
+				Hash:     f.Hash,
+				Name:     f.Name,
+				Size:     f.Size,
+				ResultID: f.ResultID,
+				FilePath: f.FilePath,
 			}, nil
 		}
 	}

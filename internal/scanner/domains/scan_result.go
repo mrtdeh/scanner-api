@@ -15,9 +15,16 @@ const (
 )
 
 type ScanResult struct {
+	ID        string          `bson:"id" json:"id"`
 	FileHash  string          `bson:"file_hash" json:"file_hash"`   // use for finding scan result by file content
 	Results   []ScannerResult `bson:"results" json:"results"`       // scan result for multiple scanner
 	CreatedAt time.Time       `bson:"created_at" json:"created_at"` // time of created the first scanner result
+}
+
+func (sr *ScanResult) IsExpired() bool {
+	// Check if scan result is expired or not by created time and expired duration
+	expiredDuration := 24 * time.Hour // Set expired duration for scan result (example: 24 hours)
+	return time.Since(sr.CreatedAt) > expiredDuration
 }
 
 type ScannerResult struct {

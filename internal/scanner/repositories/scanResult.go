@@ -2,6 +2,7 @@ package repositories
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -14,9 +15,10 @@ import (
 type ScanResultRepository interface {
 	Create(req domains.ScanResult) error
 	Update(req domains.ScanResult) error
-	GetByFileHash(hash string) (*domains.ScanResult, error)
 	List(bson.M) ([]domains.ScanResult, error)
-	PutScanResultByFileHash(hash string, result domains.ScannerResult) error
+	PutScanResultByID(id string, result domains.ScannerResult) error
+	GetLatestResultByFileHash(hash string) (*domains.ScanResult, error)
+	GetResultByID(id string) (*domains.ScanResult, error)
 }
 
 type scanResultRepo struct {
@@ -28,13 +30,35 @@ func NewScanResultRepository(db *mongo.Database) ScanResultRepository {
 		collection: db.Collection("scan_results"),
 	}
 }
-func (sr *scanResultRepo) PutScanResultByFileHash(hash string, result domains.ScannerResult) error {
+
+func (sr *scanResultRepo) GetResultByID(id string) (*domains.ScanResult, error) {
+	ctx := context.Background()
+
+	filter := bson.M{"id": id}
+
+	res := sr.collection.FindOne(ctx, filter)
+	if res.Err() != nil {
+		if errors.Is(res.Err(), mongo.ErrNoDocuments) {
+			return nil, nil // No document found, return nil without error
+		}
+		return nil, fmt.Errorf("failed to get scan result: %v", res.Err())
+	}
+
+	var result domains.ScanResult
+	if err := res.Decode(&result); err != nil {
+		return nil, fmt.Errorf("failed to decode scan result: %v", err)
+	}
+	return &result, nil
+
+}
+
+func (sr *scanResultRepo) PutScanResultByID(id string, result domains.ScannerResult) error {
 	ctx := context.Background()
 
 	c := sr.collection
 	// Update engine result if existed
 	filter := bson.M{
-		"file_hash":      hash,
+		"id":             id,
 		"results.engine": result.Engine,
 	}
 
@@ -51,7 +75,7 @@ func (sr *scanResultRepo) PutScanResultByFileHash(hash string, result domains.Sc
 
 	// Add engine scan result if not existed
 	if updateResult.MatchedCount == 0 {
-		filter = bson.M{"file_hash": hash}
+		filter = bson.M{"id": id}
 		update = bson.M{
 			"$push": bson.M{
 				"results": bson.M{
@@ -82,7 +106,7 @@ func (sr *scanResultRepo) Create(req domains.ScanResult) error {
 }
 
 func (sr *scanResultRepo) Update(req domains.ScanResult) error {
-	filter := bson.M{"file_hash": req.FileHash}
+	filter := bson.M{"id": req.ID}
 
 	result, err := sr.collection.UpdateMany(ctx, filter, bson.M{"$set": req})
 	if err != nil {
@@ -95,18 +119,26 @@ func (sr *scanResultRepo) Update(req domains.ScanResult) error {
 	return nil
 }
 
-func (sr *scanResultRepo) GetByFileHash(hash string) (*domains.ScanResult, error) {
+func (sr *scanResultRepo) GetLatestResultByFileHash(hash string) (*domains.ScanResult, error) {
+	ctx := context.Background()
+
 	filter := bson.M{"file_hash": hash}
 
-	res := sr.collection.FindOne(ctx, filter)
+	opts := options.FindOne().SetSort(bson.M{"created_at": -1})
+
+	res := sr.collection.FindOne(ctx, filter, opts)
 	if res.Err() != nil {
+		if errors.Is(res.Err(), mongo.ErrNoDocuments) {
+			return nil, nil // No document found, return nil without error
+		}
 		return nil, fmt.Errorf("failed to get scan result: %v", res.Err())
 	}
-	var req domains.ScanResult
-	if err := res.Decode(&req); err != nil {
+
+	var result domains.ScanResult
+	if err := res.Decode(&result); err != nil {
 		return nil, fmt.Errorf("failed to decode scan result: %v", err)
 	}
-	return &req, nil
+	return &result, nil
 }
 
 func (sr *scanResultRepo) List(filter bson.M) ([]domains.ScanResult, error) {

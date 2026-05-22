@@ -17,9 +17,11 @@ type ScanRequest struct {
 
 // Embedded model for store files in scan request
 type ScanRequestFile struct {
-	FileID string `bson:"file_id" json:"file_id"` // use for make sure uploded
-	Status string `bson:"status" json:"status"`   // pending , processing , completed , failed , cached
-	Hash   string `bson:"hash" json:"hash"`       // use for file scan result discovery
-	Name   string `bson:"name" json:"name"`
-	Size   int64  `bson:"size" json:"size"`
+	ID       string `bson:"id" json:"id"`
+	Status   string `bson:"status" json:"status"`                           // pending , processing , completed , failed , cached
+	ResultID string `bson:"result_id,omitempty" json:"result_id,omitempty"` // Id of scan result that related to this file.
+	Hash     string `bson:"hash" json:"hash"`                               // use for file scan result discovery
+	Name     string `bson:"name" json:"name"`
+	Size     int64  `bson:"size" json:"size"`
+	FilePath string `bson:"file_path" json:"file_path"` // local path of file that used for scanning
 }
