@@ -81,7 +81,7 @@ func (jm *JobManager) process(job *Job) {
 	}
 
 	if err := job.Run(true); err != nil {
-		job.Err = err
+		job.err = err
 		return
 	}
 

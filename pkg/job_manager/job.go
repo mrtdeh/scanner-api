@@ -8,28 +8,31 @@ import (
 )
 
 type Job struct {
-	ID         string
-	tasks      []*Task
-	MaxRetry   int
-	MaxTimeout time.Duration
-	CreatedAt  time.Time
-	Params     map[string]any
-	Err        error
+	cnf   Config
+	tasks []*Task
+	err   error
 
 	ctx    context.Context
 	cancel context.CancelFunc
 	wg     *sync.WaitGroup
 }
 
+type Config struct {
+	// MaxRetry is the maximum number of retries for each task.
+	MaxRetry int
+	// MaxTimeout is the maximum duration for each task to complete.
+	Timeout time.Duration
+	// Backoff is the duration to wait before retrying a failed task.
+	Backoff time.Duration
+}
+
 // NewJob, return none nil new job pointer. note that no need to nil check for this value
-func NewJob(maxRetries int, maxTimeout time.Duration) *Job {
+func NewJob(cnf Config) *Job {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &Job{
-		MaxRetry:   maxRetries,
-		MaxTimeout: maxTimeout,
-		CreatedAt:  time.Now(),
-		ctx:        ctx,
-		cancel:     cancel,
+		cnf:    cnf,
+		ctx:    ctx,
+		cancel: cancel,
 
 		tasks: []*Task{},
 		wg:    &sync.WaitGroup{},
@@ -65,11 +68,11 @@ func (j *Job) Run(concurrent bool) error {
 		default:
 			if concurrent {
 				go func() {
-					t.run(j.MaxRetry, j.MaxTimeout, time.Second)
+					t.run(j.cnf.MaxRetry, j.cnf.Timeout, j.cnf.Backoff)
 					j.wg.Done()
 				}()
 			} else {
-				t.run(j.MaxRetry, j.MaxTimeout, time.Second)
+				t.run(j.cnf.MaxRetry, j.cnf.Timeout, j.cnf.Backoff)
 				j.wg.Done()
 			}
 		}
