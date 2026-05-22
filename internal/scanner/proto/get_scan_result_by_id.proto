@@ -1,0 +1,21 @@
+syntax = "proto3";
+package scanner;
+option go_package = "./pb;scannerpb";
+
+
+
+
+import "scan_response.proto";
+
+
+message GetScanResultByIDRequest {
+    string scan_id = 1;
+}
+
+message GetScanResultByIDResponse {
+    bool found = 1;
+    ScanResponse Scan = 2;
+    string error = 3; 
+}
+
+

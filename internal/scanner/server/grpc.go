@@ -5,14 +5,12 @@ import (
 	"log"
 	"net"
 
-	"github.com/mrtdeh/scanners-management/internal/scanner/controller"
-	"github.com/mrtdeh/scanners-management/proto/scannerpb"
+	scannerpb "github.com/mrtdeh/scanners-management/internal/scanner/pb"
+
 	"google.golang.org/grpc"
 )
 
-type Controller = controller.ScannerServerController
-
-func RunGRPCServer(ctr *Controller, addr string) error {
+func RunGRPCServer(h *ScannerHandler, addr string) error {
 	lis, err := net.Listen("tcp", addr)
 	if err != nil {
 		return fmt.Errorf("failed to listen: %v", err)
@@ -20,7 +18,7 @@ func RunGRPCServer(ctr *Controller, addr string) error {
 
 	grpcServer := grpc.NewServer()
 
-	scannerpb.RegisterScannerServiceServer(grpcServer, ctr)
+	scannerpb.RegisterScannerServiceServer(grpcServer, h)
 
 	log.Printf("gRPC server listening on %s", addr)
 

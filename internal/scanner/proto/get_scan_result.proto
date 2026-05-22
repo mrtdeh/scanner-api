@@ -1,0 +1,18 @@
+syntax = "proto3";
+package scanner;
+option go_package = "./pb;scannerpb";
+
+
+
+
+message GetScanResultRequest{
+    string scan_id = 1;
+}
+
+
+message GetScanResultResponse{
+    string scan_id = 1;
+    string file_name = 2;
+    string engine = 3;
+    string status = 4;
+}

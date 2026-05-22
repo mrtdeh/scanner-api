@@ -1,0 +1,27 @@
+syntax = "proto3";
+package scanner;
+option go_package = "./pb;scannerpb";
+
+
+
+
+import "scan_response.proto";
+
+
+message GetHistoryRequest {
+    ScanStatus status_filter = 1;     
+}
+
+message GetHistoryResponse {
+    repeated ScanResponse Scans = 1;
+}
+
+
+enum ScanStatus {
+    Scan_STATUS_UNSPECIFIED = 0;
+    Scan_STATUS_PENDING = 1;
+    Scan_STATUS_PROCESSING = 2;
+    Scan_STATUS_COMPLETED = 3;
+    Scan_STATUS_FAILED = 4;
+    Scan_STATUS_CANCELLED = 5;
+}

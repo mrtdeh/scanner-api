@@ -1,14 +1,11 @@
 package services
 
 import (
-	"context"
-	"encoding/json"
-	"errors"
+	"fmt"
 	"log"
-	"sync"
 	"time"
 
-	"github.com/mrtdeh/scanners-management/internal/model"
+	"github.com/mrtdeh/scanners-management/internal/scanner/domains"
 	engines "github.com/mrtdeh/scanners-management/internal/scanner/engins"
 	"github.com/mrtdeh/scanners-management/internal/scanner/repositories"
 	jobmng "github.com/mrtdeh/scanners-management/pkg/job_manager"
@@ -17,8 +14,8 @@ import (
 
 type ScannerServerService struct {
 	jm      *jobmng.JobManager
-	ReqRepo repositories.ScanRequestRepository
-	ResRepo repositories.ScanResultRepository
+	reqRepo repositories.ScanRequestRepository
+	resRepo repositories.ScanResultRepository
 
 	yeng engines.YaraScannerDockerEngine
 	heng engines.HashGeneratorEngine
@@ -27,204 +24,133 @@ type ScannerServerService struct {
 
 func NewScannerServerService(
 	jm *jobmng.JobManager,
-	ReqRepo repositories.ScanRequestRepository,
-	ResRepo repositories.ScanResultRepository,
+	reqRepo repositories.ScanRequestRepository,
+	resRepo repositories.ScanResultRepository,
 	yeng engines.YaraScannerDockerEngine,
 	heng engines.HashGeneratorEngine,
 	reng engines.RandomSleeperEngine,
 
 ) *ScannerServerService {
-	s := &ScannerServerService{jm, ReqRepo, ResRepo, yeng, heng, reng}
+	s := &ScannerServerService{jm, reqRepo, resRepo, yeng, heng, reng}
 	return s
 }
 
-func (s *ScannerServerService) AddFileToScanQueue(scanRequestID, fileRequestID, filepath string) error {
-	d, _ := json.Marshal(model.ScanJob{
-		ScanID:   scanRequestID,
-		FileID:   fileRequestID,
-		FilePath: filepath,
-	})
-
-	return s.jm.AddJob(jobmng.Job{
-		ID:   fileRequestID,
-		Data: d,
-	})
+func (s *ScannerServerService) checkFileResultIsExist(fileHash string) bool {
+	// Implementation for checking if file is cached
+	_, err := s.resRepo.GetByFileHash(fileHash)
+	if err == nil {
+		return true
+	}
+	return false
 }
 
-func (s *ScannerServerService) processScanRequest(j *jobmng.Job) error {
-	// TODO : process the scan job...
-	start := time.Now()
-	var results []model.ScannerResult
-	var wg sync.WaitGroup
-	var sjob model.ScanJob
-	var l sync.Mutex
-	var updateResults = func(r model.ScannerResult) {
-		l.Lock()
-		defer l.Unlock()
-		results = append(results, r)
-	}
+func (s *ScannerServerService) AddFileToScanQueue(scanRequestID, fileHash, filepath string) error {
 
-	if err := json.Unmarshal(j.Data, &sjob); err != nil {
-		return err
-	}
+	job := jobmng.NewJob(3, time.Second*5)
+	job.AddTasks(
+		s.HashGeneratorTask(fileHash, filepath),
+		s.RandomSleeperTask(fileHash),
+	)
 
-	wg.Add(3)
+	return s.jm.AddJob(job)
+}
 
-	go func() {
-		defer wg.Done()
-		start := time.Now()
-		ctx := context.Background()
-		yres, err := s.yeng.Scan(ctx, sjob.FilePath)
-		if err != nil {
-			updateResults(model.ScannerResult{
-				StartedAt:   start,
-				Engine:      "yara_scanner",
-				Status:      "failed",
-				Error:       err.Error(),
-				CompletedAt: time.Now(),
-			})
+func (s *ScannerServerService) CreateScan(req CreateScanRequest) (*CreateScanResponse, error) {
+	var files []domains.ScanRequestFile
+	var states []FileState
 
-			return
+	// Convert DTO to business model
+	for _, rf := range req.Files {
+		f := domains.ScanRequestFile{
+			FileID: rf.UID,
+			Name:   rf.Name,
+			Size:   rf.Size,
+			Hash:   rf.Hash,
+			Status: "pending",
 		}
-		updateResults(model.ScannerResult{
-			Engine:      "yara_scanner",
-			Output:      yres.RawOutput,
-			Status:      "completed",
-			StartedAt:   start,
-			CompletedAt: time.Now(),
-		})
-	}()
 
-	go func() {
-		defer wg.Done()
-		start := time.Now()
-		hash := s.heng.GenerateHash(sjob.FilePath)
-		updateResults(model.ScannerResult{
-			Engine:      "hash_generator",
-			Output:      hash,
-			Status:      "completed",
-			StartedAt:   start,
-			CompletedAt: time.Now(),
-		})
-	}()
+		var state = FileState{FileID: rf.UID}
+		isExist := s.checkFileResultIsExist(rf.Hash)
+		if isExist {
+			state.Cached = true
+			f.Status = "cached"
+		}
+		states = append(states, state)
 
-	go func() {
-		defer wg.Done()
-		start := time.Now()
-		dur := s.reng.RandomSleep()
-		updateResults(model.ScannerResult{
-			Engine:      "random_sleeper",
-			Output:      dur.String(),
-			Status:      "completed",
-			StartedAt:   start,
-			CompletedAt: time.Now(),
-		})
-	}()
-
-	wg.Wait()
-	s.ResRepo.Create(model.ScanResult{
-		ScanFinished: true,
-		FileName:     sjob.FilePath,
-		CreatedAt:    start,
-		FinishedAt:   time.Now(),
-		Results:      results,
-	})
-	return nil
-}
-
-func (s *ScannerServerService) CreateScan(scanId string, files []model.ScanRequestFile) error {
-	return s.ReqRepo.Create(model.ScanRequest{
-		ScanID:    scanId,
+		files = append(files, f)
+	}
+	m := domains.ScanRequest{
+		ScanID:    req.ScanID,
 		Files:     files,
 		StartedAt: time.Now(),
-	})
+		CreatedAt: time.Now(),
+		Status:    "created",
+	}
+
+	// Store model to db
+	err := s.reqRepo.Create(m)
+	if err != nil {
+		return nil, err
+	}
+
+	// Response to controller
+	return &CreateScanResponse{
+		FilesStates: states,
+	}, nil
 }
 
 func (s *ScannerServerService) IsScanRequestExists(scanId string) bool {
-	m, _ := s.ReqRepo.GetByID(scanId)
+	m, _ := s.reqRepo.GetByID(scanId)
 	return m != nil
 }
 
-func (s *ScannerServerService) SetFileAsReceived(scanId string, fileRequestId string) error {
-	m, err := s.ReqRepo.GetByID(scanId)
-	if err != nil {
-		return err
-	}
-	var found bool
-	var f model.ScanRequestFile
-	for _, f = range m.Files {
-		if f.RequestID == fileRequestId {
-			found = true
-			break
-		}
-	}
-	if !found {
-		return errors.New("request file id not found in scan request : " + fileRequestId)
-	}
-
-	f.Received = true
-	if err := s.ReqRepo.UpdateFile(scanId, f); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (s *ScannerServerService) GetHistory() ([]model.ScanResponse, error) {
-	var res []model.ScanResponse
-	results, err := s.ReqRepo.List(bson.M{})
+func (s *ScannerServerService) GetHistory() ([]ScanRequestResult, error) {
+	scans, err := s.reqRepo.List(bson.M{})
 	if err != nil {
 		log.Println("error in get by file hash : ", err)
 		return nil, err
 	}
 
-	var scanResults []model.ScanResult
-	for _, r := range results {
-		for _, f := range r.Files {
-			sr, err := s.ResRepo.GetByFileHash(f.Hash)
-			if err != nil {
-				log.Println("error in get by file hash : ", err)
-				continue
-			}
+	var results []ScanRequestResult
 
-			scanResults = append(scanResults, *sr)
-		}
-		res = append(res, model.ScanResponse{
-			ScanID:      r.ScanID,
-			Result:      scanResults,
-			StartedAt:   r.StartedAt,
-			CompletedAt: r.CompletedAt,
-		})
-
+	for _, sr := range scans {
+		res := s.convertRequestScanToResponse(sr)
+		results = append(results, res)
 	}
 
-	return res, nil
+	return results, nil
 }
 
-func (s *ScannerServerService) GetResultByScanID(scanId string) (*model.ScanResponse, error) {
-	result, err := s.ReqRepo.GetByID(scanId)
+func (s *ScannerServerService) GetResultByScanID(scanId string) (*ScanRequestResult, error) {
+	result, err := s.reqRepo.GetByID(scanId)
 	if err != nil {
 		log.Println("error in get scan : ", err)
 		return nil, err
 	}
 
-	var scanResults []model.ScanResult
+	res := s.convertRequestScanToResponse(*result)
 
-	for _, f := range result.Files {
-		sr, err := s.ResRepo.GetByFileHash(f.Hash)
-		if err != nil {
-			log.Println("error in get by file hash : ", err)
-			continue
-		}
+	return &res, nil
+}
 
-		scanResults = append(scanResults, *sr)
-
+func (s *ScannerServerService) GetFileInfo(scanId, fileId string) (*FileInfo, error) {
+	result, err := s.reqRepo.GetByID(scanId)
+	if err != nil {
+		log.Println("error in get scan : ", err)
+		return nil, err
 	}
 
-	return &model.ScanResponse{
-		ScanID:      result.ScanID,
-		Result:      scanResults,
-		StartedAt:   result.StartedAt,
-		CompletedAt: result.CompletedAt,
-	}, nil
+	for _, f := range result.Files {
+		if f.FileID == fileId {
+			return &FileInfo{
+				UID:    f.FileID,
+				Status: f.Status,
+				Hash:   f.Hash,
+				Name:   f.Name,
+				Size:   f.Size,
+			}, nil
+		}
+	}
 
+	return nil, fmt.Errorf("scan request or file not found")
 }

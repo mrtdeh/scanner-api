@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/mrtdeh/scanners-management/internal/scanner/config"
-	"github.com/mrtdeh/scanners-management/internal/scanner/controller"
 	engines "github.com/mrtdeh/scanners-management/internal/scanner/engins"
 	"github.com/mrtdeh/scanners-management/internal/scanner/repositories"
 	grpcserver "github.com/mrtdeh/scanners-management/internal/scanner/server"
@@ -51,10 +50,10 @@ func main() {
 	scanService := services.NewScannerServerService(
 		jm, scanResultRepo, scanRequestRepo,
 		yeng, heng, reng)
-	ctr := controller.NewScannerServerController(scanService)
+	h := grpcserver.NewScannerServerHandler(scanService)
 
 	log.Fatal(
 		"error in run gRPC server :",
-		grpcserver.RunGRPCServer(ctr, fmt.Sprintf("%s:%d", cnf.GRPCHost, cnf.GRPCPort)),
+		grpcserver.RunGRPCServer(h, fmt.Sprintf("%s:%d", cnf.GRPCHost, cnf.GRPCPort)),
 	)
 }

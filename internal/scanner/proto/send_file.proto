@@ -1,0 +1,24 @@
+
+syntax = "proto3";
+
+package scanner;
+
+option go_package = "./pb;scannerpb";
+
+
+
+
+message SendFileRequest{
+    oneof data{
+        FileHeader info = 3;
+        bytes chunk_data = 4;
+    }
+}
+
+message FileHeader {
+    string scan_id = 1;
+    string file_id = 2;    
+}
+
+
+message SendFileResponse{}

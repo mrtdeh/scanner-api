@@ -1,0 +1,35 @@
+syntax = "proto3";
+package scanner;
+option go_package = "./pb;scannerpb";
+
+
+
+
+
+message CreateScanRequest {
+    string scan_id = 1;
+    repeated FileRequest Files = 2;
+}
+
+
+message FileRequest {
+    string file_id = 1;
+    string hash = 2;
+    string name = 3;
+    int64 size = 4;
+}
+
+
+message CreateScanResponse {
+    bool success = 1;
+    string scan_id = 2;
+    string message = 3;
+    repeated FileScanResultState states = 4;
+}
+
+
+message FileScanResultState {
+    string file_id = 1;
+    bool cached = 2;
+}
+

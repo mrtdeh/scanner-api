@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/mrtdeh/scanners-management/internal/model"
+	"github.com/mrtdeh/scanners-management/internal/scanner/domains"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
@@ -15,12 +15,12 @@ var (
 )
 
 type ScanRequestRepository interface {
-	Create(req model.ScanRequest) error
-	Update(req model.ScanRequest) error
-	UpdateFile(scanId string, fileReq model.ScanRequestFile) error
+	Create(req domains.ScanRequest) error
+	Update(req domains.ScanRequest) error
+	UpdateFile(scanId string, fileReq domains.ScanRequestFile) error
 	Delete(scanID string) error
-	GetByID(scanID string) (*model.ScanRequest, error)
-	List(bson.M) ([]model.ScanRequest, error)
+	GetByID(scanID string) (*domains.ScanRequest, error)
+	List(bson.M) ([]domains.ScanRequest, error)
 }
 
 type scanRequestRepo struct {
@@ -33,7 +33,7 @@ func NewScanRequestRepository(db *mongo.Database) ScanRequestRepository {
 	}
 }
 
-func (sr *scanRequestRepo) Create(req model.ScanRequest) error {
+func (sr *scanRequestRepo) Create(req domains.ScanRequest) error {
 	_, err := sr.collection.InsertOne(ctx, req)
 	if err != nil {
 		return fmt.Errorf("failed to create scan request: %v", err)
@@ -41,7 +41,7 @@ func (sr *scanRequestRepo) Create(req model.ScanRequest) error {
 	return nil
 }
 
-func (sr *scanRequestRepo) Update(req model.ScanRequest) error {
+func (sr *scanRequestRepo) Update(req domains.ScanRequest) error {
 	filter := bson.M{"scan_id": req.ScanID}
 
 	result, err := sr.collection.UpdateMany(ctx, filter, bson.M{"$set": req})
@@ -55,7 +55,7 @@ func (sr *scanRequestRepo) Update(req model.ScanRequest) error {
 	return nil
 }
 
-func (sr *scanRequestRepo) UpdateFile(scanId string, fileReq model.ScanRequestFile) error {
+func (sr *scanRequestRepo) UpdateFile(scanId string, fileReq domains.ScanRequestFile) error {
 	ctx := context.Background()
 
 	filter := bson.M{"scan_id": scanId}
@@ -63,15 +63,15 @@ func (sr *scanRequestRepo) UpdateFile(scanId string, fileReq model.ScanRequestFi
 	// آپدیت فایل در آرایه files (اگر فایل با همین name و hash وجود داشت، replace کن)
 	update := bson.M{
 		"$set": bson.M{
-			"files.$[elem].name":     fileReq.Name,
-			"files.$[elem].hash":     fileReq.Hash,
-			"files.$[elem].size":     fileReq.Size,
-			"files.$[elem].received": fileReq.Received,
+			"files.$[elem].name": fileReq.Name,
+			"files.$[elem].hash": fileReq.Hash,
+			"files.$[elem].size": fileReq.Size,
+			// "files.$[elem].received": fileReq.Received,
 		},
 	}
 
 	arrayFilters := options.UpdateOne().SetArrayFilters([]any{
-		bson.M{"elem.request_id": fileReq.RequestID},
+		bson.M{"elem.file_id": fileReq.FileID},
 	})
 
 	result, err := sr.collection.UpdateOne(ctx, filter, update, arrayFilters)
@@ -96,21 +96,21 @@ func (sr *scanRequestRepo) Delete(scanID string) error {
 	return nil
 }
 
-func (sr *scanRequestRepo) GetByID(scanID string) (*model.ScanRequest, error) {
+func (sr *scanRequestRepo) GetByID(scanID string) (*domains.ScanRequest, error) {
 	filter := bson.M{"scan_id": scanID}
 
 	res := sr.collection.FindOne(ctx, filter)
 	if res.Err() != nil {
 		return nil, fmt.Errorf("failed to get scan request: %v", res.Err())
 	}
-	var req model.ScanRequest
+	var req domains.ScanRequest
 	if err := res.Decode(&req); err != nil {
 		return nil, fmt.Errorf("failed to decode scan request: %v", err)
 	}
 	return &req, nil
 }
 
-func (sr *scanRequestRepo) List(filter bson.M) ([]model.ScanRequest, error) {
+func (sr *scanRequestRepo) List(filter bson.M) ([]domains.ScanRequest, error) {
 	if filter == nil {
 		filter = bson.M{}
 	}
@@ -124,7 +124,7 @@ func (sr *scanRequestRepo) List(filter bson.M) ([]model.ScanRequest, error) {
 	}
 	defer cursor.Close(ctx)
 
-	var requests []model.ScanRequest
+	var requests []domains.ScanRequest
 	if err = cursor.All(ctx, &requests); err != nil {
 		return nil, fmt.Errorf("failed to decode scan requests: %v", err)
 	}

@@ -1,0 +1,18 @@
+syntax = "proto3";
+package scanner;
+option go_package = "./pb;scannerpb";
+
+
+
+
+import "create_scan.proto";
+import "send_file.proto";
+import "get_scan_result_by_id.proto";
+import "get_history.proto";
+
+service ScannerService {
+    rpc CreateScan(CreateScanRequest) returns (CreateScanResponse);
+    rpc SendFile(stream SendFileRequest) returns (SendFileResponse);
+    rpc GetScanResultByID(GetScanResultByIDRequest) returns (GetScanResultByIDResponse);
+    rpc GetHistory(GetHistoryRequest) returns (GetHistoryResponse);
+}

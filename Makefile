@@ -16,7 +16,7 @@ clean:
 	rm -rf $(BUILD_DIR)/*
 
 protoc:
-	protoc --go-grpc_out=./proto/ ./proto/*.proto --go_out=./proto
+	protoc --go-grpc_out=./internal/scanner/ ./internal/scanner/proto/*.proto --go_out=./internal/scanner/ --proto_path=./internal/scanner/proto
 
 
 build: clean init

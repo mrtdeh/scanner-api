@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.6.1
 // - protoc             v3.12.4
-// source: proto/scanner.proto
+// source: main.proto
 
 package scannerpb
 
@@ -225,5 +225,5 @@ var ScannerService_ServiceDesc = grpc.ServiceDesc{
 			ClientStreams: true,
 		},
 	},
-	Metadata: "proto/scanner.proto",
+	Metadata: "main.proto",
 }
