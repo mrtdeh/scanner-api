@@ -60,7 +60,6 @@ func (sr *scanRequestRepo) UpdateFile(scanId string, fileReq domains.ScanRequest
 
 	filter := bson.M{"scan_id": scanId}
 
-	// آپدیت فایل در آرایه files (اگر فایل با همین name و hash وجود داشت، replace کن)
 	update := bson.M{
 		"$set": bson.M{
 			"files.$[elem].name": fileReq.Name,
@@ -71,7 +70,7 @@ func (sr *scanRequestRepo) UpdateFile(scanId string, fileReq domains.ScanRequest
 	}
 
 	arrayFilters := options.UpdateOne().SetArrayFilters([]any{
-		bson.M{"elem.file_id": fileReq.FileID},
+		bson.M{"elem.id": fileReq.ID},
 	})
 
 	result, err := sr.collection.UpdateOne(ctx, filter, update, arrayFilters)

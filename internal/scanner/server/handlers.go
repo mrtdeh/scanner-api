@@ -6,7 +6,6 @@ import (
 	"io"
 	"log"
 	"os"
-	"path"
 
 	"github.com/google/uuid"
 	scannerpb "github.com/mrtdeh/scanners-management/internal/scanner/pb"
@@ -30,13 +29,13 @@ func (sc *ScannerHandler) CreateScan(ctx context.Context, req *scannerpb.CreateS
 		req.ScanId = uuid.NewString()
 	}
 
-	var files []services.FileInfo
+	var files []services.FileInfoRequest
 
 	// Convert DTO to business model
 	for _, rf := range req.Files {
 
-		f := services.FileInfo{
-			UID:    rf.FileId,
+		f := services.FileInfoRequest{
+			ID:     rf.FileId,
 			Name:   rf.Name,
 			Size:   rf.Size,
 			Hash:   rf.Hash,
@@ -102,8 +101,8 @@ func (sc *ScannerHandler) SendFile(stream scannerpb.ScannerService_SendFileServe
 	var file *os.File
 	var bytesWriten int64
 	var fileSize int64
-	var filepath string
 	var scanId, fileId string
+	var finfo *services.FileInfo
 
 	for {
 		req, err := stream.Recv()
@@ -123,15 +122,14 @@ func (sc *ScannerHandler) SendFile(stream scannerpb.ScannerService_SendFileServe
 				return errors.New("scan request id not found: " + scanId)
 			}
 
-			finfo, err := sc.ss.GetFileInfo(scanId, fileId)
+			finfo, err = sc.ss.GetFileInfo(scanId, fileId)
 			if err != nil {
 				return err
 			}
-			name := path.Base(finfo.Name)
+			// name := path.Base(finfo.Name)
 			fileSize = int64(finfo.Size)
 
-			filepath = "/tmp/" + name
-			file, err = os.Create(filepath)
+			file, err = os.Create(finfo.FilePath)
 			if err != nil {
 				log.Println("error in open file : ", err.Error())
 				return errors.New("error in open file : " + err.Error())
@@ -152,7 +150,7 @@ func (sc *ScannerHandler) SendFile(stream scannerpb.ScannerService_SendFileServe
 	}
 
 	// Add job for recieved file
-	err := sc.ss.AddFileToScanQueue(scanId, fileId, filepath)
+	err := sc.ss.AddFileToScanQueue(finfo)
 	if err != nil {
 		return errors.New("error in add file to scan request job : " + err.Error())
 	}

@@ -1,49 +1,60 @@
 package services
 
 import (
-	"log"
 	"time"
 
 	"github.com/mrtdeh/scanners-management/internal/scanner/domains"
 )
 
 type CreateScanRequest struct {
-	ScanID string     `json:"scan_id"`
-	Files  []FileInfo `json:"files"`
+	ScanID string
+	Files  []FileInfoRequest
+}
+
+type FileInfoRequest struct {
+	ID     string
+	Status string
+	Hash   string
+	Name   string
+	Size   int64
 }
 
 type FileInfo struct {
-	UID    string `json:"uid"`
-	Status string `json:"status"`
-	Hash   string `json:"hash"`
-	Name   string `json:"name"`
-	Size   int64  `json:"size"`
+	ID       string
+	ScanID   string
+	Status   string
+	Hash     string
+	Name     string
+	Size     int64
+	ResultID string
+	FilePath string
 }
 
 type CreateScanResponse struct {
-	FilesStates []FileState `json:"files_states"`
+	FilesStates []FileStateResponse `json:"files_states"`
 }
 
-type FileState struct {
+type FileStateResponse struct {
 	FileID string `json:"file_id"`
 	Cached bool   `json:"cached"`
 }
 
 //==================================================================
 
-type ScanRequestResult struct {
-	ScanID      string       `json:"scan_id"`
-	Result      []ScanResult `json:"result"`
-	StartedAt   time.Time    `json:"started_at"`
-	CompletedAt time.Time    `json:"completed_at"`
+type ScanRequestResultResponse struct {
+	ScanID      string               `json:"scan_id"`
+	Result      []ScanResultResponse `json:"result"`
+	StartedAt   time.Time            `json:"started_at"`
+	CompletedAt time.Time            `json:"completed_at"`
 }
 
-type ScanResult struct {
-	FileName string          `json:"file_name"`
-	Results  []ScannerResult `json:"results"`
+type ScanResultResponse struct {
+	FileName string                  `json:"file_name"`
+	Status   string                  `json:"status"`
+	Results  []ScannerResultResponse `json:"results"`
 }
 
-type ScannerResult struct {
+type ScannerResultResponse struct {
 	Engine      string    `json:"engine"`
 	Status      string    `json:"status"`
 	Output      string    `json:"output"`
@@ -51,33 +62,42 @@ type ScannerResult struct {
 	CompletedAt time.Time `json:"completed_at"`
 }
 
-func (s *ScannerServerService) convertRequestScanToResponse(rs domains.ScanRequest) ScanRequestResult {
-	var scanResults []ScanResult
+func (s *ScannerServerService) convertRequestScanToResponse(rs domains.ScanRequest) ScanRequestResultResponse {
+	var scanResults []ScanResultResponse
 	for _, f := range rs.Files {
-		sr, err := s.resRepo.GetByFileHash(f.Hash)
-		if err != nil {
-			log.Println("error in get by file hash : ", err)
-			continue
-		}
-		var scannerResults []ScannerResult
-		for _, r := range sr.Results {
-			scannerResults = append(scannerResults, ScannerResult{
-				Engine:      r.Engine,
-				Status:      string(r.Status),
-				Output:      r.Output,
-				StartedAt:   r.StartedAt,
-				CompletedAt: r.CompletedAt,
-			})
+
+		var scannerResults []ScannerResultResponse
+
+		if f.ResultID != "" {
+			// If file has result id, then get scan result by this id and convert to response model
+			sr, _ := s.resRepo.GetResultByID(f.ResultID)
+			if sr != nil {
+				for _, r := range sr.Results {
+					scannerResults = append(scannerResults, ScannerResultResponse{
+						Engine:      r.Engine,
+						Status:      string(r.Status),
+						Output:      r.Output,
+						StartedAt:   r.StartedAt,
+						CompletedAt: r.CompletedAt,
+					})
+				}
+			}
 		}
 
-		scanResults = append(scanResults, ScanResult{
+		if f.Status == "completed" && len(scannerResults) == 0 {
+			// If file status is completed but no scanner result found, then set status to failed for this file
+			f.Status = "failed"
+		}
+
+		scanResults = append(scanResults, ScanResultResponse{
 			FileName: f.Name,
+			Status:   f.Status,
 			Results:  scannerResults,
 		})
 
 	}
 
-	return ScanRequestResult{
+	return ScanRequestResultResponse{
 		ScanID:      rs.ScanID,
 		Result:      scanResults,
 		StartedAt:   rs.StartedAt,

@@ -6,7 +6,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-func convertScanToProtoResponse(s services.ScanRequestResult) *scannerpb.ScanResponse {
+func convertScanToProtoResponse(s services.ScanRequestResultResponse) *scannerpb.ScanResponse {
 	var scanresultProto []*scannerpb.ScanResult
 
 	for _, sr := range s.Result {

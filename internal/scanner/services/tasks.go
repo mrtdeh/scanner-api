@@ -9,7 +9,7 @@ import (
 	jobmng "github.com/mrtdeh/scanners-management/pkg/job_manager"
 )
 
-func (s *ScannerServerService) YaraScannerTask(fileHash, filePath string) jobmng.TaskFunc {
+func (s *ScannerServerService) YaraScannerTask(finfo *FileInfo) jobmng.TaskFunc {
 	return func(t *jobmng.Task) error {
 		now := time.Now()
 		r := domains.ScannerResult{
@@ -20,7 +20,7 @@ func (s *ScannerServerService) YaraScannerTask(fileHash, filePath string) jobmng
 		}
 
 		// Store the initial scan result with "processing" status
-		err := s.resRepo.PutScanResultByFileHash(fileHash, r)
+		err := s.resRepo.PutScanResultByID(finfo.ResultID, r)
 		if err != nil {
 			return fmt.Errorf("failed to put scan result: %w", err)
 		}
@@ -30,7 +30,7 @@ func (s *ScannerServerService) YaraScannerTask(fileHash, filePath string) jobmng
 		defer cancel()
 
 		// Run the main task function
-		res, err := s.yeng.Scan(ctx, filePath)
+		res, err := s.yeng.Scan(ctx, finfo.FilePath)
 		if err != nil {
 			return fmt.Errorf("failed to run yara scanner: %w", err)
 		}
@@ -40,7 +40,7 @@ func (s *ScannerServerService) YaraScannerTask(fileHash, filePath string) jobmng
 		r.CompletedAt = time.Now()
 
 		// Update the scan result with the final output and status
-		err = s.resRepo.PutScanResultByFileHash(fileHash, r)
+		err = s.resRepo.PutScanResultByID(finfo.ResultID, r)
 		if err != nil {
 			return fmt.Errorf("failed to put scan result: %w", err)
 		}
@@ -50,11 +50,11 @@ func (s *ScannerServerService) YaraScannerTask(fileHash, filePath string) jobmng
 	}
 }
 
-func (s *ScannerServerService) HashGeneratorTask(fileHash, filePath string) jobmng.TaskFunc {
+func (s *ScannerServerService) HashGeneratorTask(finfo *FileInfo) jobmng.TaskFunc {
 	return func(t *jobmng.Task) error {
 		now := time.Now()
-		hash := s.heng.GenerateHash(filePath)
-		err := s.resRepo.PutScanResultByFileHash(fileHash, domains.ScannerResult{
+		hash := s.heng.GenerateHash(finfo.FilePath)
+		err := s.resRepo.PutScanResultByID(finfo.ResultID, domains.ScannerResult{
 			Engine:      "hash_generator",
 			Status:      "completed",
 			Output:      hash,
@@ -69,7 +69,7 @@ func (s *ScannerServerService) HashGeneratorTask(fileHash, filePath string) jobm
 	}
 }
 
-func (s *ScannerServerService) RandomSleeperTask(fileHash string) jobmng.TaskFunc {
+func (s *ScannerServerService) RandomSleeperTask(finfo *FileInfo) jobmng.TaskFunc {
 	return func(t *jobmng.Task) error {
 		now := time.Now()
 		r := domains.ScannerResult{
@@ -80,7 +80,7 @@ func (s *ScannerServerService) RandomSleeperTask(fileHash string) jobmng.TaskFun
 		}
 
 		// Store the initial scan result with "processing" status
-		err := s.resRepo.PutScanResultByFileHash(fileHash, r)
+		err := s.resRepo.PutScanResultByID(finfo.ResultID, r)
 		if err != nil {
 			return fmt.Errorf("failed to put scan result: %w", err)
 		}
@@ -93,7 +93,7 @@ func (s *ScannerServerService) RandomSleeperTask(fileHash string) jobmng.TaskFun
 		r.CompletedAt = time.Now()
 
 		// Update the scan result with the final output and status
-		err = s.resRepo.PutScanResultByFileHash(fileHash, r)
+		err = s.resRepo.PutScanResultByID(finfo.ResultID, r)
 		if err != nil {
 			return fmt.Errorf("failed to put scan result: %w", err)
 		}
