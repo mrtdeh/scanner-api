@@ -4,6 +4,7 @@ services:
 
   api-service:
     image: mrtdeh/api
+    container_name: api-service
     environment:
       - HTTP_HOST=0.0.0.0
       - HTTP_PORT=8080
@@ -14,13 +15,27 @@ services:
 
   scanner-service:
     image: mrtdeh/scanner
+    container_name: scanner-service
     environment:
       - GRPC_HOST=0.0.0.0
+
       - MONGO_HOST=mongodb
       - MONGO_USER=admin
       - MONGO_PASS=admin
+
+      # - YARA_RULES_PATH=/home/yara-rules
+      - YARA_CONTAINER_NAME=yara-service
+      - YARA_SCAN_ROOT=/data
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+      - shared_data:/data
+
+  yara-service:
+    image: mrtdeh/yara-service
+    container_name: yara-service
+    volumes:
+      - /home/yara-rules:/rules
+      - shared_data:/data
 
 
 
@@ -40,3 +55,5 @@ services:
 
 volumes:
   mongodb_data:
+  shared_data:
+

@@ -1,5 +1,7 @@
 FROM alpine:latest AS build-release-stage
 
+RUN apk add --no-cache docker-cli
+
 WORKDIR /
 COPY ./build/bin/scanner /scanner
 

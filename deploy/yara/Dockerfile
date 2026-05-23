@@ -1,6 +1,10 @@
 FROM alpine:latest
-RUN apk add --no-cache docker-cli
 RUN apk add --no-cache yara
+
 WORKDIR /data
-ENTRYPOINT ["yara"]
-CMD ["--help"]
+COPY ./deploy/yara/entrypoint.sh /data/entrypoint.sh
+RUN chmod +x /data/entrypoint.sh
+
+
+ENTRYPOINT ["/data/entrypoint.sh"]
+

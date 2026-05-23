@@ -29,12 +29,22 @@ build-portable: clean init
 
 
 docker-clean:
-	docker image prune -f
-	
+	docker rmi -f mrtdeh/api
+	docker rmi -f mrtdeh/scanner
+
+
+docker-build-yara:
+	docker build --tag mrtdeh/yara-service -f ./deploy/yara/Dockerfile .
+
+
+docker-build: docker-clean
+	docker build --tag mrtdeh/api -f ./deploy/api/Dockerfile .
+	docker build --tag mrtdeh/scanner -f ./deploy/scanner/Dockerfile .
+
 
 docker-build-local: docker-clean build-portable
-	docker build --tag mrtdeh/api -f ./deploy/dockerfile.api.local .
-	docker build --tag mrtdeh/scanner -f ./deploy/dockerfile.scanner.local .
+	docker build --tag mrtdeh/api -f ./deploy/api/Dockerfile.local .
+	docker build --tag mrtdeh/scanner -f ./deploy/scanner/Dockerfile.local .
 
 docker-up:
 	docker compose -p mrtdeh -f ./deploy/docker-compose.yml up --force-recreate --remove-orphans --build -d

@@ -1,0 +1,1 @@
+docker run --rm -it -v /var/run/docker.sock:/var/run/docker.sock --entrypoint /bin/sh mrtdeh/scanner:latest
