@@ -69,6 +69,7 @@ func (x *Time) GetTimestamp() *timestamp.Timestamp {
 type ScanResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ScanId        string                 `protobuf:"bytes,1,opt,name=scan_id,json=scanId,proto3" json:"scan_id,omitempty"`
+	Status        string                 `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
 	Results       []*ScanResult          `protobuf:"bytes,3,rep,name=results,proto3" json:"results,omitempty"`
 	StartedAt     *Time                  `protobuf:"bytes,4,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
 	CompletedAt   *Time                  `protobuf:"bytes,5,opt,name=completed_at,json=completedAt,proto3" json:"completed_at,omitempty"`
@@ -113,6 +114,13 @@ func (x *ScanResponse) GetScanId() string {
 	return ""
 }
 
+func (x *ScanResponse) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
 func (x *ScanResponse) GetResults() []*ScanResult {
 	if x != nil {
 		return x.Results
@@ -137,7 +145,8 @@ func (x *ScanResponse) GetCompletedAt() *Time {
 type ScanResult struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	FileName      string                 `protobuf:"bytes,1,opt,name=file_name,json=fileName,proto3" json:"file_name,omitempty"`
-	Result        []*ScannerResult       `protobuf:"bytes,2,rep,name=Result,proto3" json:"Result,omitempty"`
+	FileStatus    string                 `protobuf:"bytes,2,opt,name=file_status,json=fileStatus,proto3" json:"file_status,omitempty"`
+	Result        []*ScannerResult       `protobuf:"bytes,3,rep,name=Result,proto3" json:"Result,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -175,6 +184,13 @@ func (*ScanResult) Descriptor() ([]byte, []int) {
 func (x *ScanResult) GetFileName() string {
 	if x != nil {
 		return x.FileName
+	}
+	return ""
+}
+
+func (x *ScanResult) GetFileStatus() string {
+	if x != nil {
+		return x.FileStatus
 	}
 	return ""
 }
@@ -276,17 +292,20 @@ const file_scan_response_proto_rawDesc = "" +
 	"\n" +
 	"\x13scan_response.proto\x12\ascanner\x1a\x1fgoogle/protobuf/timestamp.proto\"@\n" +
 	"\x04time\x128\n" +
-	"\ttimestamp\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\"\xb6\x01\n" +
+	"\ttimestamp\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\"\xce\x01\n" +
 	"\fScanResponse\x12\x17\n" +
-	"\ascan_id\x18\x01 \x01(\tR\x06scanId\x12-\n" +
+	"\ascan_id\x18\x01 \x01(\tR\x06scanId\x12\x16\n" +
+	"\x06status\x18\x02 \x01(\tR\x06status\x12-\n" +
 	"\aresults\x18\x03 \x03(\v2\x13.scanner.ScanResultR\aresults\x12,\n" +
 	"\n" +
 	"started_at\x18\x04 \x01(\v2\r.scanner.timeR\tstartedAt\x120\n" +
-	"\fcompleted_at\x18\x05 \x01(\v2\r.scanner.timeR\vcompletedAt\"Y\n" +
+	"\fcompleted_at\x18\x05 \x01(\v2\r.scanner.timeR\vcompletedAt\"z\n" +
 	"\n" +
 	"ScanResult\x12\x1b\n" +
-	"\tfile_name\x18\x01 \x01(\tR\bfileName\x12.\n" +
-	"\x06Result\x18\x02 \x03(\v2\x16.scanner.ScannerResultR\x06Result\"\xcd\x01\n" +
+	"\tfile_name\x18\x01 \x01(\tR\bfileName\x12\x1f\n" +
+	"\vfile_status\x18\x02 \x01(\tR\n" +
+	"fileStatus\x12.\n" +
+	"\x06Result\x18\x03 \x03(\v2\x16.scanner.ScannerResultR\x06Result\"\xcd\x01\n" +
 	"\rScannerResult\x12\x16\n" +
 	"\x06engine\x18\x01 \x01(\tR\x06engine\x12\x16\n" +
 	"\x06output\x18\x02 \x01(\tR\x06output\x12\x16\n" +

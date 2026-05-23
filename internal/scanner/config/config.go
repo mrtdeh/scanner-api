@@ -55,6 +55,7 @@ func LoadConfiguration() (*Config, error) {
 	viper.SetDefault(LOG_LEVEL, "info")
 	viper.SetDefault(GRPC_PORT, 10000)
 	viper.SetDefault(MONGO_PORT, 27017)
+	viper.SetDefault(MONGO_DB, "scannerdb")
 	viper.SetDefault(YARA_IMAGE, "yara")
 
 	var cnf Config

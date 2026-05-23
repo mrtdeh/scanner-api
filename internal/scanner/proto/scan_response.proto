@@ -13,6 +13,7 @@ message time{
 
 message ScanResponse {
     string scan_id = 1;
+    string status = 2;
     repeated ScanResult results = 3;
     time started_at = 4;
     time completed_at = 5;
@@ -20,7 +21,8 @@ message ScanResponse {
 
 message ScanResult{
     string file_name = 1;
-    repeated ScannerResult Result = 2;
+    string file_status = 2;
+    repeated ScannerResult Result = 3;
 }
 message ScannerResult {
     string engine = 1;

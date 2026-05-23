@@ -63,15 +63,16 @@ func (s *ScannerServerService) convertRequestScanToResponse(rs domains.ScanReque
 		}
 
 		scanResults = append(scanResults, responses.ScanResultResponse{
-			FileName: f.Name,
-			Status:   f.Status,
-			Results:  scannerResults,
+			FileName:   f.Name,
+			FileStatus: f.Status,
+			Results:    scannerResults,
 		})
 
 	}
 
 	return responses.ScanRequestResultResponse{
 		ScanID:      rs.ScanID,
+		Status:      rs.Status,
 		Result:      scanResults,
 		StartedAt:   rs.StartedAt,
 		CompletedAt: rs.CompletedAt,

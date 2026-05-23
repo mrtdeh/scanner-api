@@ -3,7 +3,6 @@ package httpserver
 import (
 	"fmt"
 	"net/http"
-	"path/filepath"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -19,7 +18,6 @@ func NewScanHandler(service *services.ScanService) *ScanHandler {
 }
 
 func (h *ScanHandler) CreateScan(c *gin.Context) {
-	// Source
 	file, err := c.FormFile("file")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -28,15 +26,23 @@ func (h *ScanHandler) CreateScan(c *gin.Context) {
 		return
 	}
 
-	filename := filepath.Base(file.Filename)
+	// Save form files to safe directory
+	tmpDir := fmt.Sprintf("/tmp/%s", file.Filename)
+	err = c.SaveUploadedFile(file, tmpDir, 0655)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": fmt.Sprintf("save file err: %s", err.Error()),
+		})
+		return
+	}
 
 	scanid := uuid.New().String()
 	res, err := h.service.CreateScan(services.CreateScanRequest{
 		ScanID: scanid,
 		FormFiles: []services.FormFile{
 			{
-				Name:     filename,
-				TempPath: file.Filename,
+				Name:     file.Filename,
+				TempPath: tmpDir,
 				Size:     file.Size,
 			},
 		},

@@ -24,9 +24,9 @@ type ScanRequestResultResponse struct {
 }
 
 type ScanResultResponse struct {
-	FileName string                  `json:"file_name"`
-	Status   string                  `json:"status"`
-	Results  []ScannerResultResponse `json:"results"`
+	FileName   string                  `json:"file_name"`
+	FileStatus string                  `json:"status"`
+	Results    []ScannerResultResponse `json:"results"`
 }
 
 type ScannerResultResponse struct {
@@ -54,14 +54,15 @@ func ConvertScanResultProtoToResponse(s *scannerpb.ScanResponse) ScanRequestResu
 			})
 		}
 		scanResults = append(scanResults, ScanResultResponse{
-			FileName: sr.FileName,
-			Status:   "", // Status is not included in proto response, so we can set it to empty string or you can add it to proto response if needed
-			Results:  scannerResults,
+			FileName:   sr.FileName,
+			FileStatus: sr.FileStatus, // Status is not included in proto response, so we can set it to empty string or you can add it to proto response if needed
+			Results:    scannerResults,
 		})
 	}
 
 	return ScanRequestResultResponse{
 		ScanID:      s.ScanId,
+		Status:      s.Status,
 		Result:      scanResults,
 		StartedAt:   s.StartedAt.Timestamp.AsTime(),
 		CompletedAt: s.CompletedAt.Timestamp.AsTime(),

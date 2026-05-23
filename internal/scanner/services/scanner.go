@@ -96,6 +96,8 @@ func (s *ScannerServerService) CreateScan(req CreateScanRequest) (*responses.Cre
 			scanResultID = latest.ID
 		}
 
+		f.ResultID = scanResultID
+
 		states = append(states, state)
 		files = append(files, f)
 
