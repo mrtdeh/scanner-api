@@ -39,8 +39,11 @@ func NewScannerServerService(
 	return s
 }
 
-func (s *ScannerServerService) AddFileToScanQueue(finfo *FileInfo) error {
+func (s *ScannerServerService) SetFileStatus(scanId, fileId, status string) error {
+	return s.reqRepo.UpdateFileStatus(scanId, fileId, status)
+}
 
+func (s *ScannerServerService) AddFileToScanQueue(finfo *FileInfo) error {
 	job := jobmng.NewJob(jobmng.Config{
 		MaxRetry: 3,
 		Timeout:  time.Second * 10,
@@ -50,6 +53,12 @@ func (s *ScannerServerService) AddFileToScanQueue(finfo *FileInfo) error {
 		s.YaraScannerTask(finfo),
 		s.HashGeneratorTask(finfo),
 		s.RandomSleeperTask(finfo),
+	)
+	job.OnStarted(
+		s.OnFileScanStarted(job, finfo),
+	)
+	job.OnFinished(
+		s.OnFileScanFinished(job, finfo),
 	)
 
 	return s.jm.AddJob(job)
@@ -70,7 +79,6 @@ func (s *ScannerServerService) CreateScan(req CreateScanRequest) (*responses.Cre
 			Size:     rf.Size,
 			Hash:     rf.Hash,
 			Status:   "pending",
-			ResultID: scanResultID,
 			FilePath: fmt.Sprintf("/tmp/%s_%s", rf.ID, rf.Name),
 		}
 

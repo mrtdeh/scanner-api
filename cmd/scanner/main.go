@@ -42,12 +42,13 @@ func main() {
 
 	scanRequestRepo := repositories.NewScanResultRepository(db)
 	scanResultRepo := repositories.NewScanRequestRepository(db)
-	yeng, err := engines.NewYaraScannerDockerEngine(&engines.DefaultCommandExcutor{}, cnf.YaraImage, cnf.YaraRulesPath)
-	if err != nil {
+	yeng := engines.NewYaraScannerDockerEngine(&engines.DefaultCommandExcutor{}, cnf.YaraImage, cnf.YaraRulesPath)
+	if err := yeng.Check(); err != nil {
 		log.Fatal(err)
 	}
 
-	heng := engines.NewHashGeneratorEngine("aaa")
+	salt := "my salt value"
+	heng := engines.NewHashGeneratorEngine(salt)
 	reng := engines.NewRandomSleeperEngine(time.Second, time.Second*10)
 	scanService := services.NewScannerServerService(
 		jm, scanResultRepo, scanRequestRepo,

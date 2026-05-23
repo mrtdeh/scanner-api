@@ -80,11 +80,18 @@ func (jm *JobManager) process(job *Job) {
 		return
 	}
 
+	if job.onStarted != nil {
+		job.onStarted()
+	}
+
 	if err := job.Run(true); err != nil {
 		job.err = err
 		return
 	}
 
+	if job.onFinished != nil {
+		job.onFinished()
+	}
 	job.WaitForCompleteTasks()
 	job.Close()
 

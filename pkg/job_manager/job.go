@@ -7,10 +7,15 @@ import (
 	"time"
 )
 
+type OnJobFinishedFunc func()
+type OnJobStartedFunc func()
+
 type Job struct {
-	cnf   Config
-	tasks []*Task
-	err   error
+	cnf        Config
+	tasks      []*Task
+	onFinished OnJobFinishedFunc
+	onStarted  OnJobStartedFunc
+	err        error
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -39,6 +44,14 @@ func NewJob(cnf Config) *Job {
 	}
 }
 
+func (j *Job) OnFinished(onFinished OnJobFinishedFunc) {
+	j.onFinished = onFinished
+}
+
+func (j *Job) OnStarted(onStarted OnJobStartedFunc) {
+	j.onStarted = onStarted
+}
+
 func (j *Job) AddTasks(tasksFn ...TaskFunc) {
 	now := time.Now()
 	for _, fn := range tasksFn {
@@ -57,6 +70,17 @@ func (j *Job) WaitForCompleteTasks() {
 func (j *Job) Close() {
 	j.cancel()
 	j.WaitForCompleteTasks()
+}
+
+// Return all errors from tasks, if no error, return empty array
+func (j *Job) TasksError() []error {
+	var errs []error
+	for _, t := range j.tasks {
+		if t.Err != nil {
+			errs = append(errs, t.Err)
+		}
+	}
+	return errs
 }
 
 func (j *Job) Run(concurrent bool) error {

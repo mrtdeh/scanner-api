@@ -17,7 +17,7 @@ var (
 type ScanRequestRepository interface {
 	Create(req domains.ScanRequest) error
 	Update(req domains.ScanRequest) error
-	UpdateFile(scanId string, fileReq domains.ScanRequestFile) error
+	UpdateFileStatus(scanId, fileId, status string) error
 	Delete(scanID string) error
 	GetByID(scanID string) (*domains.ScanRequest, error)
 	List(bson.M) ([]domains.ScanRequest, error)
@@ -55,22 +55,19 @@ func (sr *scanRequestRepo) Update(req domains.ScanRequest) error {
 	return nil
 }
 
-func (sr *scanRequestRepo) UpdateFile(scanId string, fileReq domains.ScanRequestFile) error {
+func (sr *scanRequestRepo) UpdateFileStatus(scanId, fileId, status string) error {
 	ctx := context.Background()
 
 	filter := bson.M{"scan_id": scanId}
 
 	update := bson.M{
 		"$set": bson.M{
-			"files.$[elem].name": fileReq.Name,
-			"files.$[elem].hash": fileReq.Hash,
-			"files.$[elem].size": fileReq.Size,
-			// "files.$[elem].received": fileReq.Received,
+			"files.$[elem].status": status,
 		},
 	}
 
 	arrayFilters := options.UpdateOne().SetArrayFilters([]any{
-		bson.M{"elem.id": fileReq.ID},
+		bson.M{"elem.id": fileId},
 	})
 
 	result, err := sr.collection.UpdateOne(ctx, filter, update, arrayFilters)

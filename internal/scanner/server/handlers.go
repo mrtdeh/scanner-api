@@ -146,8 +146,13 @@ func (sc *ScannerHandler) SendFile(stream scannerpb.ScannerService_SendFileServe
 		}
 	}
 
+	err := sc.ss.SetFileStatus(scanId, fileId, "created")
+	if err != nil {
+		return errors.New("error in update file status : " + err.Error())
+	}
+
 	// Add job for recieved file
-	err := sc.ss.AddFileToScanQueue(finfo)
+	err = sc.ss.AddFileToScanQueue(finfo)
 	if err != nil {
 		return errors.New("error in add file to scan request job : " + err.Error())
 	}

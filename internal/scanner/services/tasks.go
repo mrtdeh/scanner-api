@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/mrtdeh/scanners-management/internal/scanner/domains"
@@ -100,5 +101,59 @@ func (s *ScannerServerService) RandomSleeperTask(finfo *FileInfo) jobmng.TaskFun
 
 		fmt.Println("complete random sleeper task : duration =", dur)
 		return nil
+	}
+}
+
+func (s *ScannerServerService) OnFileScanStarted(job *jobmng.Job, finfo *FileInfo) jobmng.OnJobStartedFunc {
+	return func() {
+		log.Printf("Started processing file: %s", finfo.ID)
+
+		err := s.reqRepo.UpdateFileStatus(finfo.ScanID, finfo.ID, "processing")
+		if err != nil {
+			log.Printf("Failed to update file status: %v", err)
+		}
+	}
+}
+
+func (s *ScannerServerService) OnFileScanFinished(job *jobmng.Job, finfo *FileInfo) jobmng.OnJobFinishedFunc {
+	return func() {
+		scanId := finfo.ScanID
+		status := "completed"
+		// Check job tasks error and update file status to failed if any task failed
+		// Else update file status to completed
+		if len(job.TasksError()) > 0 {
+			status = "failed"
+		}
+		err := s.reqRepo.UpdateFileStatus(scanId, finfo.ID, status)
+		if err != nil {
+			log.Printf("Failed to update file status: %v", err)
+		}
+
+		// Check if all files in scan request are completed or failed,
+		// then update scan request status to completed
+		scanReq, err := s.reqRepo.GetByID(scanId)
+		if err != nil {
+			log.Printf("Failed to get scan request: %v", err)
+			return
+		}
+
+		allDone := true
+		for _, f := range scanReq.Files {
+			if f.Status != "completed" && f.Status != "failed" {
+				allDone = false
+				break
+			}
+		}
+
+		if allDone {
+			scanReq.Status = "completed"
+			scanReq.CompletedAt = time.Now()
+			err := s.reqRepo.Update(*scanReq)
+			if err != nil {
+				log.Printf("Failed to update scan request status: %v", err)
+			}
+		}
+
+		log.Printf("Finished processing file: %s", finfo.ID)
 	}
 }
