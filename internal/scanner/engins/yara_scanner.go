@@ -2,7 +2,9 @@ package engines
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path"
 	"strings"
@@ -28,59 +30,52 @@ type YaraScannerDockerEngine interface {
 }
 
 type yaraScannerEngine struct {
-	image     string
-	rulesRoot string
-	executor  CommandExecutor
+	containerName string
+	scanRoot      string
+	executor      CommandExecutor
 }
 
-func NewYaraScannerDockerEngine(excutor CommandExecutor, image, rulesRoot string) (YaraScannerDockerEngine, error) {
-
-	// check docker socket for connection to external docker deamon
-	if _, err := os.Stat("/var/run/docker.sock"); err != nil {
-		return nil, fmt.Errorf("docker socket not accessible: %w", err)
+func NewYaraScannerDockerEngine(excutor CommandExecutor, containerName, scanRoot string) (YaraScannerDockerEngine, error) {
+	if containerName == "" {
+		return nil, errors.New("container name is not prepared")
 	}
 
-	if !strings.HasSuffix(rulesRoot, "/*.yar") {
-		rulesRoot = path.Join(rulesRoot, "/*.yar")
+	if scanRoot == "" {
+		return nil, errors.New("scan root is not prepared")
 	}
 
 	return &yaraScannerEngine{
-		image:     image,
-		rulesRoot: rulesRoot,
+		containerName: containerName,
+		scanRoot:      scanRoot,
+		executor:      excutor,
 	}, nil
 }
 
-// Check for exists the yara image and test rules
+// Check for docker.sock and exists the yara image and test rules
 func (r *yaraScannerEngine) Check() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	if err := r.checkImageExists(ctx); err != nil {
-		return fmt.Errorf("docker image check failed: %w", err)
+	// check docker socket for connection to external docker deamon
+	if _, err := os.Stat("/var/run/docker.sock"); err != nil {
+		return fmt.Errorf("docker socket not accessible: %w", err)
 	}
 
-	if err := r.checkRulesRoot(ctx); err != nil {
-		return fmt.Errorf("rules root check failed: %w", err)
+	if err := r.checkContainerIsRunning(ctx); err != nil {
+		return fmt.Errorf("docker container check failed: %w", err)
 	}
 
 	return nil
 }
 
-func (r *yaraScannerEngine) checkImageExists(ctx context.Context) error {
-	output, err := r.executor.ExecCommand(ctx, "docker", "image", "inspect", r.image)
+func (r *yaraScannerEngine) checkContainerIsRunning(ctx context.Context) error {
+	fmt.Println("docker", "container", "inspect", r.containerName)
+	output, err := r.executor.ExecCommand(ctx, "docker", "container", "inspect", r.containerName)
 	if err != nil {
-		if strings.Contains(string(output), "No such image") {
-			return fmt.Errorf("docker image '%s' does not exist", r.image)
+		if strings.Contains(string(output), "No such container") {
+			return fmt.Errorf("docker container '%s' does not exist", r.containerName)
 		}
-		return fmt.Errorf("failed to inspect image: %w, output: %s", err, string(output))
-	}
-	return nil
-}
-
-func (r *yaraScannerEngine) checkRulesRoot(ctx context.Context) error {
-	_, err := r.execYaraCommand(ctx, r.rulesRoot, "/dev/null")
-	if err != nil {
-		return fmt.Errorf("rules root directory '%s' not accessible: %w", r.rulesRoot, err)
+		return fmt.Errorf("failed to inspect container: %w, output: %s", err, string(output))
 	}
 	return nil
 }
@@ -92,10 +87,17 @@ func (r *yaraScannerEngine) Scan(ctx context.Context, targetFile string) (*YaraS
 	result := &YaraScanResult{
 		Matches: []YaraMatch{},
 	}
+	// Copy a target file to scan root directory for scanning
+	dst := path.Join(r.scanRoot, path.Base(targetFile))
+	if err := copyFile(targetFile, dst); err != nil {
+		return nil, err
+	}
 
+	// Run the yara scan command in docker container
+	// Command format:
+	// docker exec -it yara-service yara /rules/*.yar /path/to/target/file
 	args := []string{}
-	args = append(args, r.rulesRoot)
-	args = append(args, targetFile)
+	args = append(args, dst)
 	output, err := r.execYaraCommand(ctx, args...)
 
 	result.Duration = time.Since(startTime)
@@ -114,14 +116,14 @@ func (r *yaraScannerEngine) Scan(ctx context.Context, targetFile string) (*YaraS
 
 func (r *yaraScannerEngine) execYaraCommand(ctx context.Context, args ...string) ([]byte, error) {
 	dockerArgs := []string{
-		"run",
-		"--rm",
-		"-v", fmt.Sprintf("%s:%s:ro", r.rulesRoot, r.rulesRoot),
+		"exec",
 	}
 
-	dockerArgs = append(dockerArgs, r.image)
-	dockerArgs = append(dockerArgs, args...)
-
+	dockerArgs = append(dockerArgs, r.containerName)
+	dockerArgs = append(dockerArgs, "sh")
+	dockerArgs = append(dockerArgs, "-c")
+	dockerArgs = append(dockerArgs, fmt.Sprintf("yara /rules/*.yar %s", strings.Join(args, " ")))
+	fmt.Println("yara command : ", append([]string{"docker"}, dockerArgs...))
 	return r.executor.ExecCommand(ctx, "docker", dockerArgs...)
 }
 
@@ -147,6 +149,23 @@ func (r *yaraScannerEngine) parseYaraOutput(output string) []YaraMatch {
 	return matches
 }
 
-func (r *yaraScannerEngine) GetImage() string {
-	return r.image
+func copyFile(src, dst string) error {
+	sourceFile, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer sourceFile.Close()
+
+	destFile, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer destFile.Close()
+
+	_, err = io.Copy(destFile, sourceFile)
+	if err != nil {
+		return err
+	}
+
+	return destFile.Sync()
 }

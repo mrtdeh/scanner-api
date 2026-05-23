@@ -89,10 +89,12 @@ func (jm *JobManager) process(job *Job) {
 		return
 	}
 
+	job.WaitForCompleteTasks()
+
 	if job.onFinished != nil {
 		job.onFinished()
 	}
-	job.WaitForCompleteTasks()
+
 	job.Close()
 
 }

@@ -37,14 +37,17 @@ func main() {
 	ctx := context.Background()
 	jm, err := jobmng.NewJobManager(ctx, jobmng.DefaultConfig())
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("error in intilize job manager : ", err)
 	}
 
 	scanRequestRepo := repositories.NewScanResultRepository(db)
 	scanResultRepo := repositories.NewScanRequestRepository(db)
-	yeng := engines.NewYaraScannerDockerEngine(&engines.DefaultCommandExcutor{}, cnf.YaraImage, cnf.YaraRulesPath)
+	yeng, err := engines.NewYaraScannerDockerEngine(&engines.DefaultCommandExcutor{}, cnf.YaraContainerName, cnf.YaraScanRoot)
+	if err != nil {
+		log.Fatal("error in yara engine intilize : ", err)
+	}
 	if err := yeng.Check(); err != nil {
-		log.Fatal(err)
+		log.Fatal("error in yara engine check : ", err)
 	}
 
 	salt := "my salt value"
