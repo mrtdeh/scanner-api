@@ -1,4 +1,4 @@
-package scanner
+package main
 
 import (
 	"context"
@@ -30,9 +30,11 @@ func main() {
 		Username: cnf.MongoUsername,
 		Password: cnf.MongoPassword,
 	})
+	if err != nil {
+		log.Fatal("connect to mongo failed : ", err.Error())
+	}
 
 	ctx := context.Background()
-
 	jm, err := jobmng.NewJobManager(ctx, jobmng.DefaultConfig())
 	if err != nil {
 		log.Fatal(err)

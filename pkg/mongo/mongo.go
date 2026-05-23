@@ -26,8 +26,10 @@ func ConnectMongoDB(cnf Config) (*mongo.Database, error) {
 	uri := fmt.Sprintf("mongodb://%s:%s@%s:%d", cnf.Username, cnf.Password, cnf.Host, cnf.Port)
 	clientOptions := options.Client().ApplyURI(uri)
 	clientOptions.SetTimeout(time.Second * 10)
-	clientOptions.Auth.Username = cnf.Username
-	clientOptions.Auth.Password = cnf.Password
+	clientOptions.SetAuth(options.Credential{
+		Username: cnf.Username,
+		Password: cnf.Password,
+	})
 
 	client, err := mongo.Connect(clientOptions)
 	if err != nil {
@@ -42,6 +44,6 @@ func ConnectMongoDB(cnf Config) (*mongo.Database, error) {
 		return nil, fmt.Errorf("failed to ping MongoDB: %v", err)
 	}
 
-	log.Println("Connected to MongoDB successfully!")
+	log.Println("connected to mongoDB successfully")
 	return client.Database(cnf.DBName), nil
 }

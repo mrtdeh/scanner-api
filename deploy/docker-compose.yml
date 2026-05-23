@@ -16,7 +16,9 @@ services:
     image: mrtdeh/scanner
     environment:
       - GRPC_HOST=0.0.0.0
-      - GRPC_PORT=10000
+      - MONGO_HOST=mongodb
+      - MONGO_USER=admin
+      - MONGO_PASS=admin
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
 
@@ -36,3 +38,5 @@ services:
       - mongodb_data:/data/db
 
 
+volumes:
+  mongodb_data:

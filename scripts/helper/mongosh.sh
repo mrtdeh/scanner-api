@@ -1,0 +1,1 @@
+docker exec  -it mongodb mongosh "mongodb://localhost:27017" --username admin
